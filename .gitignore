@@ -1,0 +1,35 @@
+
+# VisionGuide AI - Excludes local dependencies, secrets, and generated files.
+
+# Python virtual environment
+.venv/
+.venv-visionguide/
+__pycache__/
+*.pyc
+
+# Node.js dependencies
+node_modules/
+
+# Frontend production builds
+dist/
+
+# Environment variables and credentials
+.env
+.env.*
+!.env.example
+
+# Python caches and test artifacts
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+# Logs
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# IDE local settings
+.vscode/
+.idea/
