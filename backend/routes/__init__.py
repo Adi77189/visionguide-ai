@@ -1,0 +1,1 @@
+# Marks the routes directory as a package for VisionGuide AI API endpoints.

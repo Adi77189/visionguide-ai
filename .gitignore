@@ -3,7 +3,7 @@
 
 # Python virtual environment
 .venv/
-.venv-visionguide/
+.venv-visionguide311/
 __pycache__/
 *.pyc
 
@@ -33,3 +33,12 @@ Thumbs.db
 # IDE local settings
 .vscode/
 .idea/
+
+.env
+.env.*
+# Excludes local VisionGuide AI test images from GitHub.
+backend/test_images/
+
+
+# Local reference links and notes
+link.txt

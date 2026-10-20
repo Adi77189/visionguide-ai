@@ -18,7 +18,7 @@ The application aims to help users:
 
 **Current version:** v0.1.0 (Development)
 
-**Current phase:** Phase 1 — Foundation and Frontend
+**Current phase:** Phase 2 — Image Understanding (local integration tested; deployment pending)
 
 **Deployment status:** Not deployed yet.
 
@@ -26,10 +26,10 @@ The application aims to help users:
 
 | Component | Technology |
 |---|---|
-| Frontend | React, Vite, Tailwind CSS (planned) |
-| Backend | Python, FastAPI (Phase 2) |
+| Frontend | React, Vite, Tailwind CSS v4, lucide-react |
+| Backend | Python, FastAPI, Uvicorn, Pillow |
 | Speech Recognition | Web Speech API (Phase 1) |
-| Computer Vision | OCR and vision models (Phase 2) |
+| Computer Vision | OpenAI vision-capable model (gpt-4o-mini tested); image text reading through multimodal prompts |
 | Agentic AI | LangGraph (Phase 4) |
 | Version Control | Git and GitHub |
 | Deployment | Netlify frontend; backend hosting TBD |
@@ -39,8 +39,19 @@ The application aims to help users:
 ```text
 visionguide-ai/
 ├── frontend/                 # React application and accessible UI
-├── backend/                  # Future FastAPI and AI services
-│   └── .venv-visionguide/    # Local Python virtual environment
+├── backend/                  # FastAPI application and OpenAI integration
+│   ├── main.py               # FastAPI app, router registration and health endpoint
+│   ├── routes/image.py       # Image validation and image-understanding endpoints
+│   ├── services/vision_service.py  # OpenAI multimodal request handling
+│   ├── requirements.txt      # Python dependencies
+│   ├── test_images/          # Local test dataset (avoid uploading private images)
+│   ├── .env                  # Local API key and model configuration (ignored by Git)
+│   └── .venv-visionguide311/ # Local virtual environment (ignored by Git)
+├── frontend/src/
+│   ├── components/           # Accessible UI components
+│   ├── hooks/                # Browser speech-recognition hook
+│   ├── services/visionApi.js # Frontend HTTP client for image understanding
+│   └── App.jsx               # Frontend state and AI response UI
 ├── .gitignore                # Excludes dependencies and sensitive files
 └── README.md                 # Project documentation and phase history
 ```
@@ -49,8 +60,8 @@ visionguide-ai/
 
 | Phase | Features | Status |
 |---|---|---|
-| Phase 1 | React UI, camera, image upload, text and voice input, Netlify | In Progress |
-| Phase 2 | Computer vision, OCR, image understanding | Pending |
+| Phase 1 | React UI, camera, image upload, text and voice input, Netlify | Local implementation/build complete; Netlify pending |
+| Phase 2 | FastAPI, OpenAI image understanding, image text reading, frontend integration | Locally tested; production deployment pending |
 | Phase 3 | Advanced speech interaction and voice responses | Pending |
 | Phase 4 | LangGraph agents, tools, conversation memory | Pending |
 | Phase 5 | Accessibility, testing, optimization, production readiness | Pending |
@@ -74,16 +85,33 @@ npm run dev
 
 Open http://localhost:5173/
 
-### Activate Backend Virtual Environment
+### Run Backend (Windows PowerShell)
 
-From the project root:
+From the project root, activate the virtual environment used for the working backend:
 
 ```powershell
 cd backend
-.\.venv-visionguide\Scripts\Activate.ps1
+.\.venv-visionguide311\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-The backend application has not been implemented yet.
+Create `backend/.env` locally with your own credentials (never commit this file):
+
+```dotenv
+OPENAI_API_KEY=your_api_key_here
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Open `http://127.0.0.1:8000/docs` for interactive API documentation or `http://127.0.0.1:8000/health` for a health check. Model access depends on the OpenAI project and account. A previous `gpt-4.1-mini` attempt returned 403 for the tested project; `gpt-4o-mini` was available in the subsequent local tests.
+
+For frontend-to-backend calls, configure `frontend/.env.local` if needed:
+
+```dotenv
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+Restart the Vite dev server after changing frontend environment variables. The frontend and backend must both be running for local image understanding.
 
 ## 6. Phase 1 — Development Log
 
@@ -224,7 +252,7 @@ The backend application has not been implemented yet.
 - Used temporary object URLs for image previews.
 
 **Testing:**
-- Valid image upload: Pending verification
+- Valid image upload: Passed in backend Swagger test (PNG, HTTP 200)
 - Image preview: Pending verification
 - Image removal: Pending verification
 - Unsupported file validation: Pending verification
@@ -234,8 +262,8 @@ The backend application has not been implemented yet.
 **Known Limitations:**
 - Camera behavior depends on browser and device support.
 - No live webcam stream is implemented.
-- Images are not yet analyzed by AI.
-- File validation is client-side only.
+- Image understanding was subsequently implemented in Phase 2.
+- Backend format, content, and size validation were subsequently implemented in Phase 2.
 
 **Deployment:** Pending.
 
@@ -265,7 +293,7 @@ The backend application has not been implemented yet.
 - Keyboard navigation: Pending verification
 
 **Known Limitations:**
-- AI processing is not yet implemented.
+- AI processing was subsequently implemented in Phase 2.
 - Submitted questions are stored only in browser memory.
 - Questions are not yet persisted in a database.
 
@@ -307,8 +335,97 @@ The backend application has not been implemented yet.
 **Deployment:** Pending.
 
 
-## 7. Testing and Deployment
-### Phase 1 Production Build
+## 7. Phase 2 — OpenAI Image Understanding Development Log
+
+**Status:** Local backend and frontend integration demonstrated; production readiness and deployment pending.
+
+### Step 1: FastAPI Backend and Image Validation
+
+**Files created or updated:**
+- `backend/main.py` — Initializes FastAPI, registers the image router, and exposes `/health`.
+- `backend/routes/image.py` — Validates uploaded JPEG, PNG, and WebP images and provides the image-understanding endpoint.
+- `backend/requirements.txt` — Declares FastAPI, Uvicorn, python-multipart, Pillow, OpenAI, and python-dotenv dependencies.
+
+**Implementation and tests:**
+- Added `POST /api/upload-image` with a 5 MB maximum file size, image decoding/verification, and MIME-type matching.
+- Confirmed HTTP 413 for oversized images, HTTP 400 for corrupted images, and HTTP 200 for a valid PNG image.
+- Added `POST /api/understand-image` accepting an image and a question.
+- Confirmed the API through the local Swagger interface at `http://127.0.0.1:8000/docs`.
+
+### Step 2: OpenAI Vision Service
+
+**Files created or updated:**
+- `backend/services/__init__.py` — Marks the services package.
+- `backend/services/vision_service.py` — Sends image bytes and user questions to an OpenAI vision-capable model.
+- `backend/.env` — Holds the local API key and model name; must remain Git-ignored.
+
+**Implementation and tests:**
+- Used the OpenAI Python SDK and multimodal Responses API to provide an image and text question.
+- Instructed the model to describe observable content, acknowledge uncertainty, follow the user's language, and avoid safety-critical navigation guidance.
+- Initially received a model-access HTTP 403 error when trying `gpt-4.1-mini`.
+- Verified that the tested OpenAI project listed `gpt-4o` and `gpt-4o-mini`; switched the local configuration to an available model.
+- Confirmed HTTP 200 and a useful answer for a blue mug image.
+- Confirmed successful image text reading from English and Hindi test images and structured summarization of a sample receipt.
+
+**Important:** The multimodal model reads text from images; a separate dedicated OCR engine has not been documented as implemented.
+
+### Step 3: Test Image Dataset
+
+**Files/folders created:**
+- `backend/test_images/` — Locally organized images for repeatable testing.
+- `backend/test_images/DATASET_README.md` — Dataset notes and organization.
+
+**Test categories shown in the project:** Everyday objects, indoor scenes, outdoor scenes, English text, Hindi text, documents, product labels, multiple objects, low-light/blur, and accessibility scenarios.
+
+**Privacy:** Do not commit personal photographs, identity documents, private receipts, or other sensitive samples without authorization. Verify dataset licenses and Git repository size before publishing images.
+
+### Step 4: Frontend–Backend Integration
+
+**Files created or updated:**
+- `frontend/src/services/visionApi.js` — Sends an image and question using `FormData` to `POST /api/understand-image`; reports backend errors.
+- `frontend/src/App.jsx` — Manages selected image, question, loading state, API errors, and accessible AI response presentation.
+- `backend/main.py` — Includes the image router and local API configuration; verify CORS settings for each frontend origin.
+
+**Implementation and tests:**
+- Connected the image selector and question form to the FastAPI endpoint.
+- Added an accessible loading announcement, error message, answer section, and reminder that AI descriptions can be incorrect.
+- Added a request ID guard so results from an older request cannot overwrite a newer selection.
+- Observed a successful frontend image-description result for a blue mug.
+- Observed a frontend `Failed to fetch` error during connectivity testing; retest after backend/network configuration changes. Do not treat this error as an OpenAI model failure without checking the browser network panel and backend logs.
+
+### Phase 2 Test Summary
+
+| Test | Observed result |
+|---|---|
+| Oversized upload | Passed — HTTP 413 |
+| Corrupted image upload | Passed — HTTP 400 |
+| Valid PNG upload | Passed — HTTP 200 |
+| Image description through Swagger | Passed — HTTP 200 |
+| Hindi image text reading | Passed — HTTP 200 |
+| English image text reading | Passed — HTTP 200 |
+| Receipt/document understanding | Passed — HTTP 200 |
+| Frontend image understanding | Passed in a local browser test |
+| Frontend connectivity failure display | Observed; recovery should be retested |
+| Production build after Phase 2 changes | Not yet verified |
+| Netlify frontend deployment | Pending |
+| Public FastAPI backend deployment | Pending |
+
+### Phase 2 Known Limitations and Next Actions
+
+- OpenAI requests incur API usage costs and require an API key with model access.
+- The OpenAI key must remain server-side; never expose it in Vite `VITE_` environment variables.
+- Netlify can host the Vite frontend, but the FastAPI backend needs a separate hosting solution or suitable serverless adaptation.
+- Production CORS, backend HTTPS URL, rate limits, upload security, timeout handling, privacy disclosures, and operational logging need verification before public launch.
+- OCR accuracy varies with blur, lighting, image resolution, script, and document layout.
+- Browser-based voice recognition depends on browser support and user permission; spoken AI answers remain a later-phase feature.
+- Image descriptions are not suitable for safety-critical navigation or decisions.
+
+**Deployment:** Pending. **Release:** `v0.2.0` not yet published.
+
+---
+
+## 8. Testing and Deployment
+### Phase 1 Production Build (historical result)
 
 **Status:** Passed
 
@@ -318,7 +435,7 @@ The backend application has not been implemented yet.
 
 **Result:**
 - 1,926 modules transformed successfully.
-- Production assets generated in frontend/dist/.
+- Production assets generated in frontend/dist/ at the time of the Phase 1 test.
 - Build completed in 738 ms.
 - No build errors reported.
 
@@ -328,16 +445,16 @@ The backend application has not been implemented yet.
 - React starter application: Passed
 - Python virtual environment activation: Passed
 - Git ignore verification: Passed
-- Custom VisionGuide UI: Not implemented
-- Camera and microphone features: Not implemented
+- Custom VisionGuide UI: Implemented and visually verified
+- Image upload and microphone controls: Implemented; browser/device compatibility testing remains ongoing
 
 ### Deployment
 
 - Netlify URL: Not available yet
-- Production build: Pending
+- Production build: Phase 1 build passed; rebuild required after Phase 2 changes
 - GitHub remote repository: Not connected yet
 
-## 8. Documentation Rules
+## 9. Documentation Rules
 
 After every development step:
 1. Document the files created or modified.
@@ -353,7 +470,7 @@ After every deployment:
 4. Record known limitations.
 5. Confirm that previous features still work.
 
-## 9. Safety and Privacy
+## 10. Safety and Privacy
 
 VisionGuide AI is intended for non-safety-critical visual-information assistance.
 
@@ -361,12 +478,12 @@ It must not be relied upon for road crossing, obstacle avoidance, medical decisi
 
 Camera images and voice recordings must not be stored without user consent.
 
-## 10. Release History
+## 11. Release History
 
 | Version | Phase | Status |
 |---|---|---|
 | v0.1.0 | Foundation | In Development |
-| v0.2.0 | Computer Vision | Planned |
+| v0.2.0 | Computer Vision | Local development tested; not released |
 | v0.3.0 | Speech AI | Planned |
 | v0.4.0 | Agentic AI | Planned |
 | v1.0.0 | Production-style Release | Planned |
